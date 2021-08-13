@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -12,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -60,6 +61,8 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+var ctx = context.Background()
+
 func main() {
 	redisEnv := os.Getenv("DATABASES_FOR_REDIS_CONNECTION")
 
@@ -69,6 +72,7 @@ func main() {
 		fmt.Println("redis connection error", err.Error())
 		return
 	}
+
 	opts, err := redis.ParseURL(redisCon.Rediss.Composed[0]) // TODO index check
 	if err != nil {
 		fmt.Println("redis parse error", err.Error())
@@ -87,13 +91,13 @@ func main() {
 	gamestate = GameState{}
 	sockets = map[string]*websocket.Conn{}
 
-	pubsub := rdb.Subscribe("mychannel")
+	pubsub := rdb.Subscribe(ctx, "mychannel")
 	defer pubsub.Close()
 
 	// goroutine for retrieving events from redis and adding to event queue
 	go func() {
 		for {
-			msg, err := pubsub.ReceiveMessage()
+			msg, err := pubsub.ReceiveMessage(ctx)
 			if err != nil {
 				fmt.Println("pubsub error:", err.Error())
 				// hard failure
@@ -220,6 +224,6 @@ func game(w http.ResponseWriter, r *http.Request) {
 			log.Printf("err: %s", err.Error())
 			return
 		}
-		rdb.Publish("channel", input)
+		rdb.Publish(ctx, "channel", input)
 	}
 }
