@@ -96,14 +96,16 @@ func main() {
 			msg, err := pubsub.ReceiveMessage()
 			if err != nil {
 				fmt.Println("pubsub error:", err.Error())
-				continue
+				// hard failure
+				os.Exit(1)
 			}
 			eventLock.Lock()
 			var input Input
 			err = json.Unmarshal([]byte(msg.Payload), &input)
 			if err != nil {
 				fmt.Println("unmarshal error:", err.Error())
-				continue
+				// hard failure
+				os.Exit(1)
 			}
 			eventQueue = append(eventQueue, input)
 			eventLock.Unlock()
