@@ -47,6 +47,8 @@ type Player struct {
 	Y     int `json:"y"`
 }
 
+const ChannelName = "channel"
+
 var rdb *redis.Client
 var gamestate GameState
 var sockets map[string]*websocket.Conn
@@ -91,7 +93,7 @@ func main() {
 	gamestate = GameState{}
 	sockets = map[string]*websocket.Conn{}
 
-	pubsub := rdb.Subscribe(ctx, "mychannel")
+	pubsub := rdb.Subscribe(ctx, ChannelName)
 	defer pubsub.Close()
 
 	// goroutine for retrieving events from redis and adding to event queue
@@ -224,6 +226,6 @@ func game(w http.ResponseWriter, r *http.Request) {
 			log.Printf("err: %s", err.Error())
 			return
 		}
-		rdb.Publish(ctx, "channel", input)
+		rdb.Publish(ctx, ChannelName, input)
 	}
 }
