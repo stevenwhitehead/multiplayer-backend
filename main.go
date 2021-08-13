@@ -57,7 +57,7 @@ func main() {
 	redisEnv := os.Getenv("DATABASES_FOR_REDIS_CONNECTION")
 
 	var redisCon RedisConnection
-	err := json.Unmarshal([]byte(redisEnv), redisCon)
+	err := json.Unmarshal([]byte(redisEnv), &redisCon)
 	if err != nil {
 		fmt.Println("redis connection error", err.Error())
 		return
