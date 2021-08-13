@@ -16,10 +16,10 @@ import (
 )
 
 type RedisConnection struct {
-	rediss Rediss `json:"rediss"`
+	Rediss RedissStruct `json:"rediss"`
 }
 
-type Rediss struct {
+type RedissStruct struct {
 	Composed []string `json:"composed"`
 }
 
@@ -62,7 +62,7 @@ func main() {
 		fmt.Println("redis connection error", err.Error())
 		return
 	}
-	opts, err := redis.ParseURL(redisCon.rediss.Composed[0]) // TODO index check
+	opts, err := redis.ParseURL(redisCon.Rediss.Composed[0]) // TODO index check
 	if err != nil {
 		fmt.Println("redis parse error", err.Error())
 		return
