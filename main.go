@@ -175,7 +175,7 @@ func main() {
 				err := s.WriteJSON(gamestate)
 				if err != nil {
 					log.Println("err:", err)
-					return
+					continue
 				}
 			}
 		}
