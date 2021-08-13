@@ -2,15 +2,26 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
+
+type RedisConnection struct {
+	rediss Rediss `json:"rediss"`
+}
+
+type Rediss struct {
+	Composed []string `json:"composed"`
+}
 
 type Input struct {
 	id     string
@@ -28,6 +39,7 @@ type Player struct {
 	Y     int `json:"y"`
 }
 
+var rdb *redis.Client
 var gamestate GameState
 var sockets map[string]*websocket.Conn
 var tick = 24 * time.Millisecond
@@ -42,9 +54,47 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
+	redisEnv := os.Getenv("DATABASES_FOR_REDIS_CONNECTION")
+
+	var redisCon RedisConnection
+	err := json.Unmarshal([]byte(redisEnv), redisCon)
+	if err != nil {
+		fmt.Println("redis connection error", err.Error())
+		return
+	}
+	opts, err := redis.ParseURL(redisCon.rediss.Composed[0]) // TODO index check
+	if err != nil {
+		fmt.Println("redis parse error", err.Error())
+		return
+	}
+	rdb = redis.NewClient(opts)
 	gamestate = GameState{}
 	sockets = map[string]*websocket.Conn{}
 
+	pubsub := rdb.Subscribe("mychannel")
+	defer pubsub.Close()
+
+	// goroutine for retrieving events from redis and adding to event queue
+	go func() {
+		for {
+			msg, err := pubsub.ReceiveMessage()
+			if err != nil {
+				fmt.Println("pubsub error:", err.Error())
+				continue
+			}
+			eventLock.Lock()
+			var input Input
+			err = json.Unmarshal([]byte(msg.Payload), &input)
+			if err != nil {
+				fmt.Println("unmarshal error:", err.Error())
+				continue
+			}
+			eventQueue = append(eventQueue, input)
+			eventLock.Unlock()
+		}
+	}()
+
+	// go func for processing eventqueue and sending gamestate
 	go func() {
 		ticker := time.NewTicker(tick)
 		for {
@@ -152,9 +202,6 @@ func game(w http.ResponseWriter, r *http.Request) {
 			log.Printf("err: %s", err.Error())
 			return
 		}
-		eventLock.Lock()
-		eventQueue = append(eventQueue, input)
-		eventLock.Unlock()
+		rdb.Publish("channel", input)
 	}
-
 }
