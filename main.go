@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -20,7 +22,12 @@ type RedisConnection struct {
 }
 
 type RedissStruct struct {
-	Composed []string `json:"composed"`
+	Composed []string    `json:"composed"`
+	Cert     Certificate `json:"certificate"`
+}
+
+type Certificate struct {
+	CertificateBase64 string `json:"certificate_base64"`
 }
 
 type Input struct {
@@ -67,6 +74,15 @@ func main() {
 		fmt.Println("redis parse error", err.Error())
 		return
 	}
+	cert, err := base64.StdEncoding.DecodeString(redisCon.Rediss.Cert.CertificateBase64)
+	if err != nil {
+		fmt.Println("base64 decode error", err.Error())
+		return
+	}
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(cert)
+	opts.TLSConfig.RootCAs = certPool
+
 	rdb = redis.NewClient(opts)
 	gamestate = GameState{}
 	sockets = map[string]*websocket.Conn{}
